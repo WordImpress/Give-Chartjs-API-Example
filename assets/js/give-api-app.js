@@ -19,7 +19,7 @@ var giveCharts = giveCharts || {};
 
 			var dfd = jQuery.Deferred();
 
-			$.get( give_local.give_api_url + '/donations?key=' + give_local.key + '&token=' + give_local.token, function( res ) {
+			$.get( give_local.give_api_url + '/donations?key=' + give_local.key + '&token=' + give_local.token + '&number=100', function( res ) {
 				dfd.resolve( res.donations );
 			});
 
@@ -30,51 +30,76 @@ var giveCharts = giveCharts || {};
 
 			$.when( charts.get_donations()).then(function( donations ) {
 				var pieChartData = [],
-					colors = ['red', 'blue', 'green', 'purple', 'yellow', 'cyan'],
 					forms = [],
 					labels = [],
-					data = [];
+					data = [],
+					month = [];
 
 				$.each(donations, function (key, value) {
 					forms.push(value.form.name);
 					labels.push(value.form.name);
+					var date = new Date( value.date );
+					if( !month[date.getMonth()] ) {
+						month[date.getMonth()] = value.total;
+					} else {
+						month[date.getMonth()] = month[date.getMonth()] + value.total;
+					}
 				})
 				$.unique(labels);
 
+				/** PIE DATA */
+				var pieColors = ['#ECE5CE', '#E08E79'];
 				$.each(labels, function (key, value) {
 					data.push(count(forms, value));
 					pieChartData.push({
 						value: count(forms, value),
-						color: colors[key],
-						highlight: colors[key + 1],
+						color: pieColors[key],
+						highlight: '#C5E0DC',
 						label: value
 					})
 				});
 
+				/** BAR DATA **/
 				var barChartData = {
-					labels: labels,
+					labels: [],
 					datasets: [
 						{
-							fillColor: colors[4],
-							strokeColor: colors[1],
-							highlightFill: colors[2],
-							highlightStroke: colors[3],
-							data: data
-						},
+							label: 'Month Totals (dollars)',
+							fillColor: '#ECE5CE',
+							stokeColor: '#E08E79',
+							highlightFill: '#C5E0DC',
+							data: [],
+						}
 					]
-				}
+				};
+				var month_key = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+				$.each( month, function( key, value ) {
+					barChartData.labels.push( month_key[key] );
+					barChartData.datasets[0].data.push( value );
+				});
 
+				// 0'ing out all undefined months
+				$.each( barChartData.datasets[0].data, function( key, value ) {
+					if( !value ) {
+						barChartData.datasets[0].data[key] = 0;
+					}
+				});
 
-				// LOAD CHART
-				//var ctx = document.getElementById("bar").getContext("2d");
-				//window.myBar = new Chart(ctx).Bar(barChartData, {
-				//	responsive: true
-				//});
+				/** LOAD CHARTS **/
+				var bar_graph = document.getElementById("bar").getContext("2d");
+				window.myBar = new Chart(bar_graph).Bar(barChartData, {
+					responsive: true,
+					tooltipTemplate: "<%if (label){%><%=label%>: <%}%>$<%= value %>",
+				});
+				jQuery('#month_chart').append(window.myBar.generateLegend());
 
-				var ctx = document.getElementById("chart").getContext("2d");
-				window.myBar = new Chart(ctx).Doughnut(pieChartData, {
+				var pie_chart = document.getElementById("chart").getContext("2d");
+				window.myPie = new Chart(pie_chart).Pie(pieChartData, {
 					responsive: true
 				});
+
+				jQuery('#form_chart').append(window.myPie.generateLegend());
+
 
 			});
 
